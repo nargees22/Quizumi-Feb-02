@@ -1071,70 +1071,100 @@ navigate(`/lobby/${quizId}`);
 //     setIsGenerating(false);
 // };
 
+// const handleGenerateQuestions = async () => {
+//   if (!organizerName) {
+//     alert('Session expired. Please login again.');
+//     navigate('/');
+//     return;
+//   }
+
+//   if (!aiTopic || !aiSkill) {
+//     setAiError('Please provide a topic and a skill level.');
+//     return;
+//   }
+
+//   if (aiUsage + aiNumQuestions > dailyAiLimit) {
+//     setAiError(`Daily limit exceeded (${dailyAiLimit} questions/day).`);
+//     return;
+//   }
+
+//   setIsGenerating(true);
+//   setAiError(null);
+
+//   try {
+//     // 1️⃣ Generate questions
+//     const questions = await generateQuestions(aiTopic, aiSkill, aiNumQuestions);
+
+//     const validQuestions = questions.filter(q =>
+//       q &&
+//       typeof q.text === 'string' &&
+//       Array.isArray(q.options) &&
+//       q.options.length === 4 &&
+//       countWords(q.text) <= 20 &&
+//       q.options.every(opt => countWords(opt) <= 10)
+//     );
+
+//     setGeneratedQuestions(
+//       validQuestions.map(q => ({ ...q, status: undefined }))
+//     );
+
+//     // 2️⃣ Atomic UPSERT (NO SELECT NEEDED)
+//     const today = new Date().toISOString().split('T')[0];
+
+//     const { error } = await supabase
+//       .from('ai_usage')
+//       .upsert(
+//         {
+//           user_id: organizerName,
+//           date_of_usage: today,
+//           number_of_ai_questions: aiUsage + validQuestions.length,
+//         },
+//         { onConflict: 'user_id,date_of_usage' }
+//       );
+
+//     if (error) {
+//       console.error('AI usage update failed:', error);
+//     } else {
+//       setAiUsage(prev => prev + validQuestions.length);
+//     }
+
+//   } catch (err: any) {
+//     console.error('AI generation failed:', err);
+//     setAiError(err?.message || 'AI generation failed');
+//   }
+
+//   setIsGenerating(false);
+// };
+
 const handleGenerateQuestions = async () => {
-  if (!organizerName) {
-    alert('Session expired. Please login again.');
-    navigate('/');
-    return;
-  }
-
-  if (!aiTopic || !aiSkill) {
-    setAiError('Please provide a topic and a skill level.');
-    return;
-  }
-
-  if (aiUsage + aiNumQuestions > dailyAiLimit) {
-    setAiError(`Daily limit exceeded (${dailyAiLimit} questions/day).`);
-    return;
-  }
-
   setIsGenerating(true);
   setAiError(null);
 
   try {
-    // 1️⃣ Generate questions
-    const questions = await generateQuestions(aiTopic, aiSkill, aiNumQuestions);
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: aiTopic,
+        skill: aiSkill,
+        count: aiNumQuestions,
+      }),
+    });
 
-    const validQuestions = questions.filter(q =>
-      q &&
-      typeof q.text === 'string' &&
-      Array.isArray(q.options) &&
-      q.options.length === 4 &&
-      countWords(q.text) <= 20 &&
-      q.options.every(opt => countWords(opt) <= 10)
-    );
-
-    setGeneratedQuestions(
-      validQuestions.map(q => ({ ...q, status: undefined }))
-    );
-
-    // 2️⃣ Atomic UPSERT (NO SELECT NEEDED)
-    const today = new Date().toISOString().split('T')[0];
-
-    const { error } = await supabase
-      .from('ai_usage')
-      .upsert(
-        {
-          user_id: organizerName,
-          date_of_usage: today,
-          number_of_ai_questions: aiUsage + validQuestions.length,
-        },
-        { onConflict: 'user_id,date_of_usage' }
-      );
-
-    if (error) {
-      console.error('AI usage update failed:', error);
-    } else {
-      setAiUsage(prev => prev + validQuestions.length);
+    if (!res.ok) {
+      throw new Error("Failed to generate questions");
     }
 
+    const data = await res.json(); // ✅ now JSON exists
+    setGeneratedQuestions(data.questions);
+
   } catch (err: any) {
-    console.error('AI generation failed:', err);
-    setAiError(err?.message || 'AI generation failed');
+    setAiError(err.message);
   }
 
   setIsGenerating(false);
 };
+
 // const handleAddFromGenerator = async (q, index) => {
 //   setGeneratedQuestions(prev =>
 //     prev.map((item, i) =>
