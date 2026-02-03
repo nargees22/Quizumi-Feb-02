@@ -1,9 +1,9 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
-console.log("GEMINI KEY:", process.env.GEMINI_API_KEY);
+
 console.log("ENV KEY EXISTS:", !!process.env.GEMINI_API_KEY);
 console.log(
   "ENV KEY VALUE (first 6 chars):",
@@ -15,44 +15,35 @@ export async function generateQuestionsServer(
   skill: string,
   count: number
 ) {
-  const schema = {
-    type: Type.OBJECT,
-    properties: {
-      questions: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            text: { type: Type.STRING },
-            options: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            correctAnswerIndex: { type: Type.INTEGER },
-          },
-          required: ["text", "options", "correctAnswerIndex"],
-        },
-      },
-    },
-  };
-
   const prompt = `
 Generate ${count} MCQ questions on "${topic}" (${skill} level).
-Each question must have exactly 4 options.
-Return ONLY valid JSON.
+Each question must have:
+- text
+- exactly 4 options
+- correctAnswerIndex (0–3)
+
+Return ONLY valid JSON in this format:
+{
+  "questions": [
+    {
+      "text": "...",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswerIndex": 0
+    }
+  ]
+}
 `;
 
   const result = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-1.5-pro", // ✅ more stable on Vercel
     contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: schema,
-    },
   });
 
-  const raw = result.text; // ✅ CORRECT
-  if (!raw) throw new Error("Empty Gemini response");
+  const raw = result.text(); // ✅ MUST be a function call
+
+  if (!raw) {
+    throw new Error("Empty Gemini response");
+  }
 
   return JSON.parse(raw);
 }
