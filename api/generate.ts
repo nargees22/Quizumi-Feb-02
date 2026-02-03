@@ -1,3 +1,7 @@
+
+export const config = {
+  runtime: "nodejs",
+};
 import { generateQuestionsServer } from "../lib/gemini";
 
 export default async function handler(req: any, res: any) {
