@@ -3,6 +3,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
+console.log("GEMINI KEY:", process.env.GEMINI_API_KEY);
+console.log("ENV KEY EXISTS:", !!process.env.GEMINI_API_KEY);
+console.log(
+  "ENV KEY VALUE (first 6 chars):",
+  process.env.GEMINI_API_KEY?.slice(0, 6)
+);
 
 export async function generateQuestionsServer(
   topic: string,
@@ -20,22 +26,20 @@ export async function generateQuestionsServer(
             text: { type: Type.STRING },
             options: {
               type: Type.ARRAY,
-              items: { type: Type.STRING }
+              items: { type: Type.STRING },
             },
             correctAnswerIndex: { type: Type.INTEGER },
-            timeLimit: { type: Type.INTEGER },
-            technology: { type: Type.STRING },
-            skill: { type: Type.STRING }
           },
-          required: ["text", "options", "correctAnswerIndex"]
-        }
-      }
-    }
+          required: ["text", "options", "correctAnswerIndex"],
+        },
+      },
+    },
   };
 
   const prompt = `
 Generate ${count} MCQ questions on "${topic}" (${skill} level).
-Each must have 4 options and one correct answer.
+Each question must have exactly 4 options.
+Return ONLY valid JSON.
 `;
 
   const result = await ai.models.generateContent({
@@ -43,9 +47,12 @@ Each must have 4 options and one correct answer.
     contents: prompt,
     config: {
       responseMimeType: "application/json",
-      responseSchema: schema
-    }
+      responseSchema: schema,
+    },
   });
 
-  return JSON.parse(result.text);
+  const raw = result.text; // ✅ CORRECT
+  if (!raw) throw new Error("Empty Gemini response");
+
+  return JSON.parse(raw);
 }
