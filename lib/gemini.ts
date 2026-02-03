@@ -39,7 +39,7 @@ Return ONLY valid JSON in this format:
     contents: prompt,
   });
 
-  const raw = result.text(); // ✅ MUST be a function call
+  const raw = result.text; // ✅ MUST be a function call
 
   if (!raw) {
     throw new Error("Empty Gemini response");
